@@ -88,18 +88,23 @@ test('the band shows the Clawds on one line and its button opens the panel', asy
 
 test('the terminal panel draws the same pixel Clawd as a Raster, its legs stepping each tick', async ($, on) => {
   const clock = mock.clock(on, { now: 1_000 })
-  on('agent.spawn', () => ({ model: 'test-model', agentId: 'a1' }))
   on('ui.open', () => ({ value: { isPlaced: true } }) as never)
   on('agent.list', () => ({ value: [] }) as never)
 
+  let n = 0
+  on('agent.spawn', () => ({ model: 'test-model', agentId: `a${++n}` }))
   await $.agent.spawn({ prompt: 'x', description: 'Explore', subagentType: 'Explore' })
+  await $.agent.spawn({ prompt: 'x', description: 'Review', subagentType: 'Code Reviewer' })
 
-  const raster = async () => {
+  const raster = async (bodyRows = scroll.bodyRows) => {
     const pane = await $.ui.mount({
       plugin: 'agent-crew', surface: 'terminal', component: 'Pane', requestId: 'agent-crew',
-      props: { title: 'Running agents', isFocused: false, bodyColumns: 60, placement: 'dock', scroll, view: {} },
+      props: { title: 'Running agents', isFocused: false, bodyColumns: 60, placement: 'dock', scroll: { ...scroll, bodyRows }, view: {} },
     } as never)
     const r = await pane.find({ type: 'Raster' })
+    // 14-row crabs sit side by side as cards, not stacked past the pane's height.
+    expect(await pane.findAll({ type: 'Raster' })).toHaveLength(2)
+    expect((await pane.findAll({ type: 'Box' })).some(b => b.props.flexWrap === 'wrap')).toBe(true)
     await pane.unmount()
     return r?.props as { columns: number; rows: number; cells: string }
   }
@@ -111,6 +116,12 @@ test('the terminal panel draws the same pixel Clawd as a Raster, its legs steppi
   // Claude's clay (#D97757) paints the body.
   expect(words.includes(0xd97757)).toBe(true)
 
+  // A pane too short for a full card halves the crab, which keeps its clay and still walks.
+  const small = await raster(12)
+  expect(small).toMatchObject({ columns: 15, rows: 7 })
+  expect(new Uint32Array(Uint8Array.fromBase64(small.cells).buffer).includes(0xd97757)).toBe(true)
+
   await clock.advance(1_000)
   expect((await raster()).cells).not.toBe(first.cells)
+  expect((await raster(12)).cells).not.toBe(small.cells)
 })

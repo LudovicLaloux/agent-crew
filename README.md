@@ -45,7 +45,7 @@ claude plugin install agent-crew@agent-crew
 
 Then open a new session and launch a few agents in parallel, for example: *"Launch 3 Explore agents in parallel to map this repo"*.
 
-The Clawds show up in the desktop app (Code tab). In the terminal panel they are drawn pixel for pixel with half-block characters (30 columns × 14 rows each, legs stepping each second); the band above the prompt keeps one-line text faces: `◖•ᴗ•◗` working, `◖ᵔᴗᵔ◗` done, `◖×_×◗` failed.
+The Clawds show up in the desktop app (Code tab). In the terminal panel they are drawn pixel for pixel with half-block characters as cards laid side by side (30 columns × 16 rows each, halved to 15 × 7 when the panel is too short; legs stepping each second); the band above the prompt keeps one-line text faces: `◖•ᴗ•◗` working, `◖ᵔᴗᵔ◗` done, `◖×_×◗` failed.
 
 **Update:**
 

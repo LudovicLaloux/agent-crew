@@ -208,13 +208,28 @@ const parseColor = (c: string): [rgb: number, alpha: number] => {
 const mix = (over: number, under: number, a: number) =>
   [16, 8, 0].reduce((acc, s) => acc | (Math.round(((over >> s) & 255) * a + ((under >> s) & 255) * (1 - a)) << s), 0)
 
-const crabCells = (type: string, accent: string, status: CrewStatus, frame: number) => {
+// Header and its margin, a full-size crab, two lines of text and the card's margin.
+const FULL_CARD_ROWS = 2 + GRID_H / 2 + 2 + 1
+
+// Each 2×2 block keeps its most frequent colour; on a tie, a painted pixel beats the background.
+const halve = (px: number[]) => {
+  const out: number[] = []
+  for (let y = 0; y < GRID_H; y += 2)
+    for (let x = 0; x < GRID_W; x += 2) {
+      const block = [px[y * GRID_W + x], px[y * GRID_W + x + 1], px[(y + 1) * GRID_W + x], px[(y + 1) * GRID_W + x + 1]].map(p => p ?? TERM_DEFAULT)
+      const count = (c: number) => block.filter(p => p === c).length
+      out.push(block.reduce((best, c) => (count(c) > count(best) || (count(c) === count(best) && best === TERM_DEFAULT) ? c : best)))
+    }
+  return out
+}
+
+const crabCells = (type: string, accent: string, status: CrewStatus, frame: number, scale: 1 | 2) => {
   const px = new Array<number>(GRID_W * GRID_H).fill(TERM_DEFAULT)
-  // The CSS gait, one tick per step: each leg pair lifts in turn.
+  // The CSS gait, one tick per step: each leg pair lifts in turn, by a whole cell once halved.
   const lifted = status === 'running' ? (frame % 2 ? 'lb' : 'la') : null
   const f: Fill = (x, y, w, h, c, cls) => {
     const [rgb, a] = parseColor(c)
-    const top = cls === lifted ? y - 1 : y
+    const top = cls === lifted ? y - scale : y
     for (let j = Math.max(0, top); j < Math.min(GRID_H, top + h); j++)
       for (let i = Math.max(0, x); i < Math.min(GRID_W, x + w); i++) {
         const under = px[j * GRID_W + i] ?? TERM_DEFAULT
@@ -222,14 +237,17 @@ const crabCells = (type: string, accent: string, status: CrewStatus, frame: numb
       }
   }
   COSTUMES[costumeOf(type)](f, status, accent)
-  const shown = status === 'running' ? px : px.map(p => (p === TERM_DEFAULT ? p : mix(p, BACKDROP, 0.55)))
-  const words = new Uint32Array(GRID_W * (GRID_H / 2) * 3)
-  for (let r = 0; r < GRID_H / 2; r++)
-    for (let i = 0; i < GRID_W; i++) {
-      const top = shown[2 * r * GRID_W + i] ?? TERM_DEFAULT
-      const bottom = shown[(2 * r + 1) * GRID_W + i] ?? TERM_DEFAULT
+  const faded = status === 'running' ? px : px.map(p => (p === TERM_DEFAULT ? p : mix(p, BACKDROP, 0.55)))
+  const shown = scale === 2 ? halve(faded) : faded
+  const W = GRID_W / scale
+  const rows = GRID_H / scale / 2
+  const words = new Uint32Array(W * rows * 3)
+  for (let r = 0; r < rows; r++)
+    for (let i = 0; i < W; i++) {
+      const top = shown[2 * r * W + i] ?? TERM_DEFAULT
+      const bottom = shown[(2 * r + 1) * W + i] ?? TERM_DEFAULT
       const cell = top === TERM_DEFAULT ? [bottom === TERM_DEFAULT ? 0x20 : 0x2584, bottom, TERM_DEFAULT] : [0x2580, top, bottom]
-      words.set(cell, (r * GRID_W + i) * 3)
+      words.set(cell, (r * W + i) * 3)
     }
   return new Uint8Array(words.buffer).toBase64()
 }
@@ -438,13 +456,25 @@ export const register: Register = on => {
       const detail = isLive(a)
         ? `${elapsed} · ${a.tools} tool${a.tools > 1 ? 's' : ''}${a.lastTool ? ` · ${a.lastTool}` : ''}`
         : `${statusLabel[a.status]} in ${elapsed} · ${a.tools} tool${a.tools > 1 ? 's' : ''}`
-      let avatar
+      // The terminal lays cards side by side, and halves the crab when the pane is too short for a full card.
       if (e.surface === 'terminal') {
         const { Raster } = $.ui.resolve(e)
-        avatar = <Raster key={`crab-${a.id}`} columns={GRID_W} rows={GRID_H / 2} cells={crabCells(a.type, color, a.status, frame)} />
-      } else {
-        const { Svg } = $.ui.resolve(e)
-        avatar = (
+        const scale = e.props.scroll.bodyRows >= FULL_CARD_ROWS ? 1 : 2
+        return (
+          <Box flexDirection="column" width={Math.max(GRID_W / scale, 24)} marginBottom={1}>
+            <Raster key={`crab-${a.id}`} columns={GRID_W / scale} rows={GRID_H / scale / 2} cells={crabCells(a.type, color, a.status, frame, scale)} />
+            <Text bold={isLive(a)} dimColor={!isLive(a)} wrap="truncate-end">
+              {a.description}
+            </Text>
+            <Text dimColor wrap="truncate-end">
+              {detail}
+            </Text>
+          </Box>
+        )
+      }
+      const { Svg } = $.ui.resolve(e)
+      return (
+        <Box flexDirection="row" alignItems="center" columnGap={1} marginBottom={1}>
           <Svg
             source={avatarSvg(a.type, color, a.status)}
             alt={`${a.description}: ${statusLabel[a.status]}`}
@@ -452,11 +482,6 @@ export const register: Register = on => {
             height={31}
             isInteractive
           />
-        )
-      }
-      return (
-        <Box flexDirection="row" alignItems="center" columnGap={1} marginBottom={1}>
-          {avatar}
           <Box flexDirection="column" flexShrink={1}>
             <Text bold={isLive(a)} dimColor={!isLive(a)} wrap="truncate-end">
               {a.description}
@@ -475,7 +500,7 @@ export const register: Register = on => {
           {live.length > 0 ? `${live.length} running` : 'All done'}
           {ended.length > 0 ? ` · ${ended.length} done` : ''}
         </Text>
-        <Box marginTop={1} flexDirection="column">
+        <Box marginTop={1} {...(e.surface === 'terminal' ? { flexDirection: 'row', flexWrap: 'wrap', columnGap: 2 } as const : { flexDirection: 'column' } as const)}>
           {ordered.map(row)}
         </Box>
       </Box>
