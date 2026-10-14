@@ -38,6 +38,14 @@ Each agent keeps its own colour, carried by its costume. Animations are pure CSS
 
 ## Installation
 
+In a Claude Code session:
+
+```
+/plugin install agent-crew --marketplace LudovicLaloux/agent-crew
+```
+
+Or from your shell, on any recent version:
+
 ```sh
 claude plugin marketplace add LudovicLaloux/agent-crew
 claude plugin install agent-crew@agent-crew
@@ -53,6 +61,8 @@ claude plugin update agent-crew@agent-crew
 ```
 
 **Uninstall:** `claude plugin uninstall agent-crew@agent-crew`
+
+**What it can access:** mods run with your permissions, outside any sandbox, so check before you install. agent-crew only watches agent and tool events, keeps its state in the session and draws its band and panel: no file access, no shell commands, no network. Run `claude plugin validate .` on a clone to see every event it hooks and every call it makes.
 
 ## In the terminal
 
