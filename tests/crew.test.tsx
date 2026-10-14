@@ -125,3 +125,27 @@ test('the terminal panel draws the same pixel Clawd as a Raster, its legs steppi
   expect((await raster()).cells).not.toBe(first.cells)
   expect((await raster(12)).cells).not.toBe(small.cells)
 })
+
+test('the panel closes once the whole crew is done', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000 })
+  let n = 0
+  const closed: string[] = []
+  on('agent.spawn', () => ({ model: 'test-model', agentId: `a${++n}` }))
+  on('ui.open', () => ({ value: { isPlaced: true } }) as never)
+  on('ui.close', (_$, e) => {
+    closed.push(e.id)
+    return { value: undefined } as never
+  })
+  on('agent.list', () => ({ value: [] }) as never)
+  on('turn.complete', () => ({ text: 'ok' }))
+
+  await $.agent.spawn({ prompt: 'x', description: 'One', subagentType: 'Explore' })
+  await $.agent.spawn({ prompt: 'x', description: 'Two', subagentType: 'Plan' })
+  await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'a1', reason: 'answer' } as never)
+  await clock.advance(1_000)
+  expect(closed).toEqual([])
+
+  await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't2', agentId: 'a2', reason: 'answer' } as never)
+  await clock.advance(1_000)
+  expect(closed).toEqual(['agent-crew'])
+})

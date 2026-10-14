@@ -277,6 +277,8 @@ function ensureTicker($: EngineInterface) {
       if (!list.some(isLive)) {
         timer?.cancel()
         timer = null
+        // The panel takes room from the conversation: it leaves with the crew.
+        await $.ui.close({ id: PANE }).catch(() => {})
         return
       }
       // Reconcile with the engine's list (killed, failed agents…).

@@ -14,7 +14,7 @@ When Claude Code spawns several subagents, they work silently: you can't tell ho
 
 **A band above the prompt**, only while agents are running: the headcount ("3 agents in parallel · 1 done ›"), then one chip per agent with its Clawd, its name, elapsed time and current tool, all on a single line (`+N` when they no longer fit). Clicking the headcount opens the crew panel.
 
-**A crew panel**, which opens by itself when the first agent starts (`/agents` to reopen it):
+**A crew panel**, which opens by itself when the first agent starts and closes by itself once they are all done (`/agents` to reopen it):
 
 - one Clawd per agent, **walking and playing with its prop** while it works;
 - it **closes its eyes** once its task is done, and gets **crossed-out eyes** if it fails;
