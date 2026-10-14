@@ -191,7 +191,50 @@ const bandSvg = (live: CrewAgent[], now: number, W: number) => {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${BAND_H}" viewBox="0 0 ${W} ${BAND_H}">${CRAB_CSS}${BAND_CSS}${chips}</svg>`
 }
 
-// Text version for the terminal (no SVG there).
+// ── Terminal avatar: the same pixel grid in a Raster, two pixels per cell (▀ = top in fg, bottom in bg) ──
+const GRID_W = 30
+const GRID_H = 28
+const TERM_DEFAULT = 0x01000000
+// shortcut: the terminal's background is unknown, so translucency blends over a dark one; read it if the API ever exposes it.
+const BACKDROP = 0x1f1e1d
+
+const parseColor = (c: string): [rgb: number, alpha: number] => {
+  const m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/)
+  if (m) return [(Number(m[1]) << 16) | (Number(m[2]) << 8) | Number(m[3]), m[4] === undefined ? 1 : Number(m[4])]
+  const hex = c.slice(1)
+  return [parseInt(hex.length === 3 ? [...hex].map(d => d + d).join('') : hex, 16), 1]
+}
+
+const mix = (over: number, under: number, a: number) =>
+  [16, 8, 0].reduce((acc, s) => acc | (Math.round(((over >> s) & 255) * a + ((under >> s) & 255) * (1 - a)) << s), 0)
+
+const crabCells = (type: string, accent: string, status: CrewStatus, frame: number) => {
+  const px = new Array<number>(GRID_W * GRID_H).fill(TERM_DEFAULT)
+  // The CSS gait, one tick per step: each leg pair lifts in turn.
+  const lifted = status === 'running' ? (frame % 2 ? 'lb' : 'la') : null
+  const f: Fill = (x, y, w, h, c, cls) => {
+    const [rgb, a] = parseColor(c)
+    const top = cls === lifted ? y - 1 : y
+    for (let j = Math.max(0, top); j < Math.min(GRID_H, top + h); j++)
+      for (let i = Math.max(0, x); i < Math.min(GRID_W, x + w); i++) {
+        const under = px[j * GRID_W + i] ?? TERM_DEFAULT
+        px[j * GRID_W + i] = a >= 1 ? rgb : mix(rgb, under === TERM_DEFAULT ? BACKDROP : under, a)
+      }
+  }
+  COSTUMES[costumeOf(type)](f, status, accent)
+  const shown = status === 'running' ? px : px.map(p => (p === TERM_DEFAULT ? p : mix(p, BACKDROP, 0.55)))
+  const words = new Uint32Array(GRID_W * (GRID_H / 2) * 3)
+  for (let r = 0; r < GRID_H / 2; r++)
+    for (let i = 0; i < GRID_W; i++) {
+      const top = shown[2 * r * GRID_W + i] ?? TERM_DEFAULT
+      const bottom = shown[(2 * r + 1) * GRID_W + i] ?? TERM_DEFAULT
+      const cell = top === TERM_DEFAULT ? [bottom === TERM_DEFAULT ? 0x20 : 0x2584, bottom, TERM_DEFAULT] : [0x2580, top, bottom]
+      words.set(cell, (r * GRID_W + i) * 3)
+    }
+  return new Uint8Array(words.buffer).toBase64()
+}
+
+// One-line text version for the terminal band.
 const avatarText = (status: CrewStatus, frame: number) => {
   if (status === 'done') return '◖ᵔᴗᵔ◗'
   if (status === 'failed') return '◖×_×◗'
@@ -397,11 +440,8 @@ export const register: Register = on => {
         : `${statusLabel[a.status]} in ${elapsed} · ${a.tools} tool${a.tools > 1 ? 's' : ''}`
       let avatar
       if (e.surface === 'terminal') {
-        avatar = (
-          <Text color={color} bold={isLive(a)} dimColor={!isLive(a)}>
-            {avatarText(a.status, frame)}
-          </Text>
-        )
+        const { Raster } = $.ui.resolve(e)
+        avatar = <Raster key={`crab-${a.id}`} columns={GRID_W} rows={GRID_H / 2} cells={crabCells(a.type, color, a.status, frame)} />
       } else {
         const { Svg } = $.ui.resolve(e)
         avatar = (

@@ -85,3 +85,32 @@ test('the band shows the Clawds on one line and its button opens the panel', asy
   expect(opened.length).toBe(before + 1)
   expect(opened.at(-1)).toMatchObject({ id: 'agent-crew' })
 })
+
+test('the terminal panel draws the same pixel Clawd as a Raster, its legs stepping each tick', async ($, on) => {
+  const clock = mock.clock(on, { now: 1_000 })
+  on('agent.spawn', () => ({ model: 'test-model', agentId: 'a1' }))
+  on('ui.open', () => ({ value: { isPlaced: true } }) as never)
+  on('agent.list', () => ({ value: [] }) as never)
+
+  await $.agent.spawn({ prompt: 'x', description: 'Explore', subagentType: 'Explore' })
+
+  const raster = async () => {
+    const pane = await $.ui.mount({
+      plugin: 'agent-crew', surface: 'terminal', component: 'Pane', requestId: 'agent-crew',
+      props: { title: 'Running agents', isFocused: false, bodyColumns: 60, placement: 'dock', scroll, view: {} },
+    } as never)
+    const r = await pane.find({ type: 'Raster' })
+    await pane.unmount()
+    return r?.props as { columns: number; rows: number; cells: string }
+  }
+
+  const first = await raster()
+  expect(first).toMatchObject({ columns: 30, rows: 14 })
+  const words = new Uint32Array(Uint8Array.fromBase64(first.cells).buffer)
+  expect(words.length).toBe(30 * 14 * 3)
+  // Claude's clay (#D97757) paints the body.
+  expect(words.includes(0xd97757)).toBe(true)
+
+  await clock.advance(1_000)
+  expect((await raster()).cells).not.toBe(first.cells)
+})
