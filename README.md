@@ -43,9 +43,7 @@ claude plugin marketplace add LudovicLaloux/agent-crew
 claude plugin install agent-crew@agent-crew
 ```
 
-Then open a new session and launch a few agents in parallel, for example: *"Launch 3 Explore agents in parallel to map this repo"*.
-
-The Clawds show up in the desktop app (Code tab). In the terminal panel they are drawn pixel for pixel with half-block characters as cards laid side by side (30 columns × 16 rows each, halved to 15 × 7 when the panel is too short; legs stepping each second); the band above the prompt keeps one-line text faces: `◖•ᴗ•◗` working, `◖ᵔᴗᵔ◗` done, `◖×_×◗` failed.
+Then open a new session and launch a few agents in parallel, for example: *"Launch 3 Explore agents in parallel to map this repo"*. The Clawds show up in the desktop app (Code tab) and in the terminal (see below).
 
 **Update:**
 
@@ -55,6 +53,22 @@ claude plugin update agent-crew@agent-crew
 ```
 
 **Uninstall:** `claude plugin uninstall agent-crew@agent-crew`
+
+## In the terminal
+
+The terminal has no SVG, so the crew panel draws the same Clawds pixel for pixel with half-block characters:
+
+- each agent is a card: its Clawd, then its description, elapsed time and tool calls underneath;
+- cards sit side by side and wrap onto new rows when the width runs out;
+- a full-size Clawd is 30 columns × 14 rows; when the panel is too short for a full card, it is halved to 15 × 7 (one-pixel details such as the magnifier's ring or the racing flag get coarser);
+- only the legs move, one step per second: the CSS animations of the desktop don't carry over;
+- translucent pixels and finished agents are blended over a dark background, so they look darker than intended on a light terminal theme.
+
+The band above the prompt has a single line, so it keeps text faces: `◖•ᴗ•◗` working, `◖ᵔᴗᵔ◗` done, `◖×_×◗` failed.
+
+By default the panel opens above the prompt. With the fullscreen renderer (`"tui": "fullscreen"` in `~/.claude/settings.json`, or `CLAUDE_CODE_NO_FLICKER=1`), it docks as a sidebar beside the conversation once the terminal is at least 110 columns wide.
+
+The Claude Code extension for VS Code doesn't draw mods yet: nothing shows there. Set `"claudeCode.useTerminal": true` in VS Code to run Claude in its integrated terminal instead.
 
 ## Contributing
 
