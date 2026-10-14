@@ -12,7 +12,7 @@ When Claude Code spawns several subagents, they work silently: you can't tell ho
 
 ## What you get
 
-**A band above the prompt**, only while agents are running: the headcount ("3 agents en parallèle · 1 terminé ›"), then one chip per agent with its Clawd, its name, elapsed time and current tool, all on a single line (`+N` when they no longer fit). Clicking the headcount opens the crew panel.
+**A band above the prompt**, only while agents are running: the headcount ("3 agents in parallel · 1 done ›"), then one chip per agent with its Clawd, its name, elapsed time and current tool, all on a single line (`+N` when they no longer fit). Clicking the headcount opens the crew panel.
 
 **A crew panel**, which opens by itself when the first agent starts (`/agents` to reopen it):
 
@@ -55,8 +55,6 @@ claude plugin update agent-crew@agent-crew
 ```
 
 **Uninstall:** `claude plugin uninstall agent-crew@agent-crew`
-
-The interface is in French for now.
 
 ## Contributing
 

@@ -1,1 +1,1 @@
-{ "name": "agent-crew", "version": "0.3.0", "description": "Met en valeur les agents parallèles en cours : bandeau au-dessus du prompt et panneau avec petits avatars animés", "types": "./types/index.d.ts", "license": "MIT", "repository": "https://github.com/LudovicLaloux/agent-crew" }
+{ "name": "agent-crew", "version": "0.4.0", "description": "Shows your parallel Claude Code agents as costumed pixel-art Clawds: a band above the prompt and a crew panel", "types": "./types/index.d.ts", "license": "MIT", "repository": "https://github.com/LudovicLaloux/agent-crew" }

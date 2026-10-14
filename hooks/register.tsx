@@ -4,11 +4,11 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { CrewAgent, CrewStatus } from '../types'
 
 const PANE = 'agent-crew'
-const TITLE = 'Agents en cours'
+const TITLE = 'Running agents'
 const agents = atom({ plugin: 'agent-crew', key: 'agents' } as const, [])
 const tick = atom({ plugin: 'agent-crew', key: 'tick' } as const, 0)
 
-// Une couleur par agent, attribuée en tournant.
+// One colour per agent, handed out in turn.
 const PALETTE = ['#E8875B', '#5BA8E8', '#7BC47F', '#C58BE8', '#E8C35B', '#E86B8F', '#5BD1C9', '#A0A0F0']
 
 const isLive = (a: CrewAgent) => a.status === 'running'
@@ -18,13 +18,13 @@ const fmt = (ms: number) => {
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}`
 }
 
-// Pixel Clawd et ses costumes : repris de savvy-progress (github.com/johnnyvizz/claude-kit, MIT),
-// lui-même tracé d'après DockCrab. Un crabe 24×18 sur une grille 30×28, un pixel = un <rect>.
+// Pixel Clawd and its costumes: adapted from savvy-progress (github.com/johnnyvizz/claude-kit, MIT),
+// itself traced from DockCrab. A 24×18 crab on a 30×28 grid, one pixel = one <rect>.
 const CLAY = '#D97757'
 const INK = '#1F1E1D'
 
-// `cls` range le pixel dans un groupe : `bd` le corps et son costume, `la`/`lb` les paires de pattes,
-// tout autre nom un accessoire avec son propre mouvement.
+// `cls` puts the pixel in a group: `bd` the body and its costume, `la`/`lb` the leg pairs,
+// any other name a prop with its own motion.
 type Fill = (x: number, y: number, w: number, h: number, c: string, cls?: string) => void
 
 const stamp = (f: Fill, x: number, y: number, rows: string[], map: Record<string, string>, cls?: string) =>
@@ -50,7 +50,7 @@ const crabBody = (f: Fill, status: CrewStatus, armFront = 0, armCls?: string) =>
   f(21, 22, 2, 4, CLAY, 'lb')
 }
 
-// Uniquement du CSS : les périodes divisent une seconde, donc le redessin du ticker les relance en phase.
+// CSS only: periods divide one second, so the ticker's redraw restarts them in phase.
 const CRAB_CSS = `<style>
 .run .la{animation:st .5s steps(1) infinite}.run .lb{animation:st .5s steps(1) infinite -.25s}
 .run .bd{animation:bob .5s steps(1) infinite -.125s}
@@ -79,7 +79,7 @@ const CRAB_CSS = `<style>
 
 type Costume = 'astronaut' | 'detective' | 'engineer' | 'chef' | 'racer' | 'pirate' | 'plain'
 
-// `t` est la couleur de l'agent, portée par l'accent du costume ; le corps garde l'argile Claude.
+// `t` is the agent's colour, carried by the costume's accent; the body keeps Claude's clay.
 const COSTUMES: Record<Costume, (f: Fill, s: CrewStatus, t: string) => void> = {
   astronaut: (f, s, t) => {
     crabBody(f, s)
@@ -121,7 +121,7 @@ const COSTUMES: Record<Costume, (f: Fill, s: CrewStatus, t: string) => void> = {
   plain: (f, s) => crabBody(f, s),
 }
 
-// Le déguisement suit le métier de l'agent ; l'ordre compte (« Security Engineer » enquête avant de bricoler).
+// The costume follows the agent's job; order matters (a "Security Engineer" investigates before tinkering).
 const costumeOf = (type: string): Costume => {
   if (/explore|search|grep/i.test(type)) return 'pirate'
   if (/review|checker|audit|security/i.test(type)) return 'detective'
@@ -141,7 +141,7 @@ const crabMarkup = (type: string, accent: string, status: CrewStatus) => {
   const costume = costumeOf(type)
   COSTUMES[costume](f, status, accent)
   const group = (cls: string) => `<g class="${cls}">${(groups.get(cls) ?? []).join('')}</g>`
-  // Les accessoires sont dans `bd` pour suivre son balancement ; les pattes marchent à part.
+  // Props sit inside `bd` to ride its bob; the legs step on their own.
   const props = [...groups.keys()].filter(k => k !== 'bd' && k !== 'la' && k !== 'lb')
   const body = `<g class="bd">${(groups.get('bd') ?? []).join('')}${props.map(group).join('')}</g>`
   const run = status === 'running' ? ' run' : ''
@@ -152,7 +152,7 @@ const crabMarkup = (type: string, accent: string, status: CrewStatus) => {
 const avatarSvg = (type: string, accent: string, status: CrewStatus) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 28" width="33" height="31">${CRAB_CSS}${crabMarkup(type, accent, status)}</svg>`
 
-// ── Bandeau desktop : une seule image, car le desktop renvoie à la ligne les éléments voisins ──
+// ── Desktop band: a single image, since the desktop wraps sibling elements onto new lines ──
 const BAND_H = 28
 const BAND_CSS = `<style>
 .bt{font:600 12px system-ui,-apple-system,"Segoe UI",sans-serif;fill:#1f1e1d}
@@ -161,7 +161,7 @@ const BAND_CSS = `<style>
 </style>`
 
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? c)
-// Une image ne mesure pas son texte : on estime large pour que l'ellipse tombe avant le bord.
+// An image cannot measure its text: estimate generously so the ellipsis lands before the edge.
 const textW = (s: string, px: number) => s.length * px * 0.56
 const clip = (s: string, max: number) => (s.length <= max ? s : `${s.slice(0, Math.max(1, max - 1))}…`)
 
@@ -191,7 +191,7 @@ const bandSvg = (live: CrewAgent[], now: number, W: number) => {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${BAND_H}" viewBox="0 0 ${W} ${BAND_H}">${CRAB_CSS}${BAND_CSS}${chips}</svg>`
 }
 
-// Version texte pour le terminal (pas de SVG là-bas).
+// Text version for the terminal (no SVG there).
 const avatarText = (status: CrewStatus, frame: number) => {
   if (status === 'done') return '◖ᵔᴗᵔ◗'
   if (status === 'failed') return '◖×_×◗'
@@ -200,10 +200,10 @@ const avatarText = (status: CrewStatus, frame: number) => {
 }
 
 const statusLabel: Record<CrewStatus, string> = {
-  running: 'en cours',
-  done: 'terminé',
-  failed: 'échec',
-  stopped: 'arrêté',
+  running: 'running',
+  done: 'done',
+  failed: 'failed',
+  stopped: 'stopped',
 }
 
 let timer: { cancel: () => void } | null = null
@@ -218,7 +218,7 @@ function ensureTicker($: EngineInterface) {
         timer = null
         return
       }
-      // Réconcilie avec la liste du moteur (agents tués, échoués…).
+      // Reconcile with the engine's list (killed, failed agents…).
       try {
         const known = await $.agent.list()
         const byId = new Map(known.map(k => [k.id, k.status]))
@@ -234,7 +234,7 @@ function ensureTicker($: EngineInterface) {
           }),
         )
       } catch {
-        // la liste n'est qu'un filet de sécurité
+        // the list is only a safety net
       }
       await update($, tick, n => (n + 1) % 1_000_000)
     })()
@@ -247,7 +247,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'agents',
-      description: 'Ouvre le panneau des agents parallèles en cours',
+      description: 'Open the panel of running parallel agents',
     })
     const list = await read($, agents)
     if (list.some(isLive)) ensureTicker($)
@@ -256,7 +256,7 @@ export const register: Register = on => {
 
   on('command.run', { command: 'agents' }, async $ => {
     await $.ui.open({ id: PANE, title: TITLE })
-    return { text: 'Panneau des agents ouvert.' }
+    return { text: 'Agents panel opened.' }
   })
 
   on('agent.spawn', async ($, e, next) => {
@@ -278,7 +278,7 @@ export const register: Register = on => {
       tools: 0,
     }
     await update($, agents, l => {
-      // on garde les agents actifs + les 12 derniers terminés
+      // keep the live agents + the last 12 finished ones
       const rest = l.filter(a => a.id !== id)
       const live = rest.filter(isLive)
       const ended = rest.filter(a => !isLive(a)).slice(-12)
@@ -315,13 +315,13 @@ export const register: Register = on => {
       )
       const list = await read($, agents)
       if (finished && list.length > 1 && !list.some(isLive)) {
-        $.ui.toast(`Tous les agents ont terminé (${list.filter(a => a.endedAt !== null).length})`)
+        $.ui.toast(`All agents finished (${list.filter(a => a.endedAt !== null).length})`)
       }
     }
     return next(e)
   })
 
-  // ── Bandeau au-dessus du prompt ──────────────────────────────────────
+  // ── Band above the prompt ────────────────────────────────────────────
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
     const list = await read($, agents)
@@ -332,11 +332,11 @@ export const register: Register = on => {
     const ui = $.ui.resolve(e)
     const { Box, Text, Button } = ui
     const done = list.filter(a => !isLive(a) && a.endedAt !== null && a.endedAt >= Math.min(...live.map(l => l.startedAt))).length
-    const summary = `${live.length} agent${live.length > 1 ? 's' : ''} en parallèle${done > 0 ? ` · ${done} terminé${done > 1 ? 's' : ''}` : ''}`
-    // Seul un Button reçoit le clic : il porte le résumé et ouvre le panneau (sans jamais le refermer).
+    const summary = `${live.length} agent${live.length > 1 ? 's' : ''} in parallel${done > 0 ? ` · ${done} done` : ''}`
+    // Only a Button takes clicks: it carries the summary and opens the panel (never closes it).
     const open = <Button key="agent-crew-open" label={`${summary} ›`} plain onPress={() => void $.ui.open({ id: PANE, title: TITLE })} />
 
-    // Le terminal reçoit un Svg qui ne dessine rien : on teste aussi la surface.
+    // The terminal gets an Svg that draws nothing: test the surface too.
     if (e.surface !== 'terminal' && 'Svg' in ui) {
       const { Svg } = ui
       const W = Math.max(160, Math.min(1600, (e.props.bodyColumns || 100) * 8 - textW(summary, 13) - 64))
@@ -371,7 +371,7 @@ export const register: Register = on => {
     )
   })
 
-  // ── Panneau latéral avec avatars ────────────────────────────────────
+  // ── Side panel with avatars ─────────────────────────────────────────
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text } = $.ui.resolve(e)
     const list = await read($, agents)
@@ -384,7 +384,7 @@ export const register: Register = on => {
     if (ordered.length === 0) {
       return (
         <Box flexDirection="column">
-          <Text dimColor>Aucun agent pour l'instant. Ils apparaîtront ici dès qu'ils démarrent.</Text>
+          <Text dimColor>No agents yet. They will show up here as soon as they start.</Text>
         </Box>
       )
     }
@@ -393,8 +393,8 @@ export const register: Register = on => {
       const color = PALETTE[a.color] ?? "#E8875B"
       const elapsed = fmt((a.endedAt ?? now) - a.startedAt)
       const detail = isLive(a)
-        ? `${elapsed} · ${a.tools} outil${a.tools > 1 ? 's' : ''}${a.lastTool ? ` · ${a.lastTool}` : ''}`
-        : `${statusLabel[a.status]} en ${elapsed} · ${a.tools} outil${a.tools > 1 ? 's' : ''}`
+        ? `${elapsed} · ${a.tools} tool${a.tools > 1 ? 's' : ''}${a.lastTool ? ` · ${a.lastTool}` : ''}`
+        : `${statusLabel[a.status]} in ${elapsed} · ${a.tools} tool${a.tools > 1 ? 's' : ''}`
       let avatar
       if (e.surface === 'terminal') {
         avatar = (
@@ -407,7 +407,7 @@ export const register: Register = on => {
         avatar = (
           <Svg
             source={avatarSvg(a.type, color, a.status)}
-            alt={`${a.description} : ${statusLabel[a.status]}`}
+            alt={`${a.description}: ${statusLabel[a.status]}`}
             width={33}
             height={31}
             isInteractive
@@ -432,8 +432,8 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         <Text color="claude" bold>
-          {live.length > 0 ? `${live.length} en cours` : 'Tous terminés'}
-          {ended.length > 0 ? ` · ${ended.length} terminé${ended.length > 1 ? 's' : ''}` : ''}
+          {live.length > 0 ? `${live.length} running` : 'All done'}
+          {ended.length > 0 ? ` · ${ended.length} done` : ''}
         </Text>
         <Box marginTop={1} flexDirection="column">
           {ordered.map(row)}
