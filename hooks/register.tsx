@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { CrewAgent, CrewStatus } from '../types'
+import type { Costume, CrewAgent, CrewStatus } from '../types'
 
 const PANE = 'agent-crew'
 const TITLE = 'Running agents'
@@ -77,8 +77,6 @@ const CRAB_CSS = `<style>
 @media (prefers-reduced-motion: reduce){.run,.run g{animation:none!important}}
 </style>`
 
-type Costume = 'astronaut' | 'detective' | 'engineer' | 'chef' | 'racer' | 'pirate' | 'plain'
-
 // `t` is the agent's colour, carried by the costume's accent; the body keeps Claude's clay.
 const COSTUMES: Record<Costume, (f: Fill, s: CrewStatus, t: string) => void> = {
   astronaut: (f, s, t) => {
@@ -122,35 +120,40 @@ const COSTUMES: Record<Costume, (f: Fill, s: CrewStatus, t: string) => void> = {
 }
 
 // The costume follows the agent's job; order matters (a "Security Engineer" investigates before tinkering).
-const costumeOf = (type: string): Costume => {
-  if (/explore|search|grep/i.test(type)) return 'pirate'
-  if (/review|checker|audit|security/i.test(type)) return 'detective'
-  if (/plan|architect/i.test(type)) return 'chef'
-  if (/prototyp|fetch/i.test(type)) return 'racer'
-  if (/docs|research|guide|writer/i.test(type)) return 'astronaut'
-  if (/engineer|developer|devops|builder|minimal/i.test(type)) return 'engineer'
-  return 'plain'
+const costumeOf = (text: string): Costume | null => {
+  if (/explore|search|grep/i.test(text)) return 'pirate'
+  if (/review|checker|audit|security/i.test(text)) return 'detective'
+  if (/plan|architect/i.test(text)) return 'chef'
+  if (/prototyp|fetch/i.test(text)) return 'racer'
+  if (/docs|research|guide|writer/i.test(text)) return 'astronaut'
+  if (/engineer|developer|devops|builder|minimal/i.test(text)) return 'engineer'
+  return null
 }
 
-const crabMarkup = (type: string, accent: string, status: CrewStatus) => {
+// Handed out in turn to agents whose type and description name no job.
+const ROTATION: Costume[] = ['pirate', 'detective', 'chef', 'racer', 'astronaut', 'engineer']
+
+// Rows saved before costumes were stored have none.
+const drawCostume = (costume: Costume | undefined) => COSTUMES[costume ?? 'plain'] ?? COSTUMES.plain
+
+const crabMarkup = (costume: Costume, accent: string, status: CrewStatus) => {
   const groups = new Map<string, string[]>([['bd', []]])
   const f: Fill = (x, y, w, h, c, cls = 'bd') => {
     if (!groups.has(cls)) groups.set(cls, [])
     groups.get(cls)?.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`)
   }
-  const costume = costumeOf(type)
-  COSTUMES[costume](f, status, accent)
+  drawCostume(costume)(f, status, accent)
   const group = (cls: string) => `<g class="${cls}">${(groups.get(cls) ?? []).join('')}</g>`
   // Props sit inside `bd` to ride its bob; the legs step on their own.
   const props = [...groups.keys()].filter(k => k !== 'bd' && k !== 'la' && k !== 'lb')
   const body = `<g class="bd">${(groups.get('bd') ?? []).join('')}${props.map(group).join('')}</g>`
   const run = status === 'running' ? ' run' : ''
   const opacity = status === 'running' ? 1 : 0.55
-  return `<g opacity="${opacity}" shape-rendering="crispEdges"><g class="c-${costume}${run}">${body}${group('la')}${group('lb')}</g></g>`
+  return `<g opacity="${opacity}" shape-rendering="crispEdges"><g class="c-${costume ?? 'plain'}${run}">${body}${group('la')}${group('lb')}</g></g>`
 }
 
-const avatarSvg = (type: string, accent: string, status: CrewStatus) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 28" width="33" height="31">${CRAB_CSS}${crabMarkup(type, accent, status)}</svg>`
+const avatarSvg = (costume: Costume, accent: string, status: CrewStatus) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 28" width="33" height="31">${CRAB_CSS}${crabMarkup(costume, accent, status)}</svg>`
 
 // ── Desktop band: a single image, since the desktop wraps sibling elements onto new lines ──
 const BAND_H = 28
@@ -184,7 +187,7 @@ const bandSvg = (live: CrewAgent[], now: number, W: number) => {
     const w = fixed + textW(label, 12)
     chips += `<g transform="translate(${x},0)">
 <rect x=".5" y="1.5" width="${w - 1}" height="${BAND_H - 3}" rx="12.5" fill="${color}" fill-opacity=".14" stroke="${color}" stroke-opacity=".5"/>
-<g transform="translate(5,3) scale(.8)">${crabMarkup(a.type, color, a.status)}</g>
+<g transform="translate(5,3) scale(.8)">${crabMarkup(a.costume, color, a.status)}</g>
 <text x="${CRAB + 8}" y="18"><tspan class="bt">${esc(label)}</tspan><tspan class="bs" dx="6">${esc(meta)}</tspan></text></g>`
     x += w + 6
   }
@@ -223,7 +226,7 @@ const halve = (px: number[]) => {
   return out
 }
 
-const crabCells = (type: string, accent: string, status: CrewStatus, frame: number, scale: 1 | 2) => {
+const crabCells = (costume: Costume, accent: string, status: CrewStatus, frame: number, scale: 1 | 2) => {
   const px = new Array<number>(GRID_W * GRID_H).fill(TERM_DEFAULT)
   // The CSS gait, one tick per step: each leg pair lifts in turn, by a whole cell once halved.
   const lifted = status === 'running' ? (frame % 2 ? 'lb' : 'la') : null
@@ -236,7 +239,7 @@ const crabCells = (type: string, accent: string, status: CrewStatus, frame: numb
         px[j * GRID_W + i] = a >= 1 ? rgb : mix(rgb, under === TERM_DEFAULT ? BACKDROP : under, a)
       }
   }
-  COSTUMES[costumeOf(type)](f, status, accent)
+  drawCostume(costume)(f, status, accent)
   const faded = status === 'running' ? px : px.map(p => (p === TERM_DEFAULT ? p : mix(p, BACKDROP, 0.55)))
   const shown = scale === 2 ? halve(faded) : faded
   const W = GRID_W / scale
@@ -306,6 +309,7 @@ function ensureTicker($: EngineInterface) {
 
 export const register: Register = on => {
   let colorCursor = 0
+  let costumeCursor = 0
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -334,6 +338,7 @@ export const register: Register = on => {
       description: e.description || e.subagentType,
       type: e.subagentType,
       color: colorCursor++ % PALETTE.length,
+      costume: costumeOf(e.subagentType) ?? costumeOf(e.description) ?? ROTATION[costumeCursor++ % ROTATION.length] ?? 'plain',
       startedAt: now,
       endedAt: null,
       status: 'running',
@@ -464,7 +469,7 @@ export const register: Register = on => {
         const scale = e.props.scroll.bodyRows >= FULL_CARD_ROWS ? 1 : 2
         return (
           <Box flexDirection="column" width={Math.max(GRID_W / scale, 24)} marginBottom={1}>
-            <Raster key={`crab-${a.id}`} columns={GRID_W / scale} rows={GRID_H / scale / 2} cells={crabCells(a.type, color, a.status, frame, scale)} />
+            <Raster key={`crab-${a.id}`} columns={GRID_W / scale} rows={GRID_H / scale / 2} cells={crabCells(a.costume, color, a.status, frame, scale)} />
             <Text bold={isLive(a)} dimColor={!isLive(a)} wrap="truncate-end">
               {a.description}
             </Text>
@@ -478,7 +483,7 @@ export const register: Register = on => {
       return (
         <Box flexDirection="row" alignItems="center" columnGap={1} marginBottom={1}>
           <Svg
-            source={avatarSvg(a.type, color, a.status)}
+            source={avatarSvg(a.costume, color, a.status)}
             alt={`${a.description}: ${statusLabel[a.status]}`}
             width={33}
             height={31}

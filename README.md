@@ -4,7 +4,7 @@
 
 **Your Claude Code agents work in parallel. Now you can see them.**
 
-<img src="assets/crew.svg" alt="Seven pixel-art Clawds, each dressed for its agent type: pirate, detective, chef, racer, astronaut, engineer, and one in plain clothes" width="100%">
+<img src="assets/crew.svg" alt="Six pixel-art Clawds, each dressed for its job: pirate, detective, chef, racer, astronaut and engineer" width="100%">
 
 </div>
 
@@ -24,7 +24,7 @@ When Claude Code spawns several subagents, they work silently: you can't tell ho
 
 ## The costumes
 
-| Agent type | Costume | While working |
+| Type or description mentions | Costume | While working |
 |---|---|---|
 | `Explore`, search, grep | 🏴‍☠️ Pirate | fences with its cutlass |
 | reviewer, checker, audit, security | 🔍 Detective | sweeps the code with its magnifier |
@@ -32,7 +32,8 @@ When Claude Code spawns several subagents, they work silently: you can't tell ho
 | prototyper, `web-fetch` | 🏁 Racer | runs twice as fast, flag fluttering |
 | docs, research, writer | 🚀 Astronaut | floats in zero gravity, antenna blinking |
 | engineer, developer, devops | 🔧 Engineer | tightens a bolt |
-| everything else | 🦀 Plain clothes | just walks |
+
+The agent's type is checked first, then its description: a `general-purpose` agent described as "Review the PR" becomes a detective. When neither names a job, the agent gets the next costume in turn, so every agent is dressed up.
 
 Each agent keeps its own colour, carried by its costume. Animations are pure CSS and stop when your system asks for reduced motion.
 

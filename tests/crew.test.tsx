@@ -36,7 +36,7 @@ test('a spawned agent shows in the band and the panel, then finishes', async ($,
   expect(await pane.find({ type: 'Text', text: /done in 12s/ })).toBeDefined()
 })
 
-test('each agent gets a Clawd costumed for its type, walking while it runs', async ($, on) => {
+test('every agent gets a costume: from its type, else its description, else the next in turn', async ($, on) => {
   mock.clock(on, { now: 1_000 })
   let n = 0
   on('agent.spawn', () => ({ model: 'test-model', agentId: `a${++n}` }))
@@ -45,8 +45,8 @@ test('each agent gets a Clawd costumed for its type, walking while it runs', asy
   on('turn.complete', () => ({ text: 'ok' }))
 
   await $.agent.spawn({ prompt: 'x', description: 'Explore', subagentType: 'Explore' })
-  await $.agent.spawn({ prompt: 'x', description: 'Review', subagentType: 'Code Reviewer' })
-  await $.agent.spawn({ prompt: 'x', description: 'Other', subagentType: 'general-purpose' })
+  await $.agent.spawn({ prompt: 'x', description: 'Review the PR', subagentType: 'general-purpose' })
+  await $.agent.spawn({ prompt: 'x', description: 'Count the files', subagentType: 'general-purpose' })
   await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't1', agentId: 'a3', reason: 'answer' } as never)
 
   const pane = await $.ui.mount({
@@ -56,7 +56,8 @@ test('each agent gets a Clawd costumed for its type, walking while it runs', asy
   const sources = (await pane.findAll({ type: 'Svg' })).map(s => String(s.props.source))
   expect(sources.some(s => s.includes('class="c-pirate run"'))).toBe(true)
   expect(sources.some(s => s.includes('class="c-detective run"'))).toBe(true)
-  expect(sources.some(s => s.includes('class="c-plain"'))).toBe(true)
+  expect(sources.some(s => s.includes('class="c-pirate"'))).toBe(true)
+  expect(sources.some(s => s.includes('c-plain'))).toBe(false)
 })
 
 test('the band shows the Clawds on one line and its button opens the panel', async ($, on) => {
